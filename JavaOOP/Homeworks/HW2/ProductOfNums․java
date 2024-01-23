@@ -11,3 +11,5 @@ public class ProductOfNums
 		System.out.println(product(3, 10));
 	}
 }
+
+//O(n)
