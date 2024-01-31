@@ -1,0 +1,578 @@
+import java.util.Arrays;
+
+abstract class AbstractMatrix {
+
+    // Constructor that initializes the values using the argument.
+    public AbstractMatrix(double[][] matrix)
+    {
+        values = new double[matrix.length][matrix[0].length];
+        for (int i = 0; i < matrix.length; ++i)
+            for (int j = 0; j < matrix[0].length; ++j)
+                values[i][j] = matrix[i][j];
+    }
+    
+    // Returns the number of rows in the matrix.
+    public int getRows()
+    {
+        return values.length;
+    }
+    
+    // Returns the number of columns in the matrix.
+    public int getColumns()
+    {
+        return values[0].length;
+    }
+    
+    // Returns a copy of the values array.
+    public double[][] getValues()
+    {
+        return values;
+    }
+    
+    // Returns the value at the specified position (i, j) in the matrix. If the position is
+    // outside the bounds of the matrix, an error message is printed and the program stops
+    // execution.
+    public double getValue(int i, int j) {
+        if (i < getRows() && j < getColumns() && i >=0 && j >=0)
+            return values[i][j];
+        System.err.println("Error: Index out of bounds.");
+        System.exit(1);
+        return 0.0;
+    }
+    
+    // Checks if the dimensions of this matrix match the dimensions of the given matrix. If
+    // the dimensions do not match, an error message is printed and the program stops
+    // execution.
+    protected void sameDimensions(AbstractMatrix other)
+    {
+        if (other.getColumns() != this.getColumns() && other.getRows() != this.getRows())
+        {
+            System.err.println("Error: Dimensions do not match.");
+            System.exit(1);
+        }
+    }
+    
+    // Checks if the dimensions of this matrix and the given matrix are compatible for matrix
+    // multiplication. If the dimensions are not compatible, an error message is printed
+    // and the program exits.
+    protected void sameDimensionsForMultiplication(AbstractMatrix other)
+    {
+        if (this.getColumns() != other.getRows())
+        {
+            System.err.println("Error: Dimensions are not compatible.");
+            System.exit(1);            
+        }
+    }
+    
+    // Prints the values of the matrix in a formatted (borders + equal number of spaces for
+    // each cell, only 2 digits after the decimal point) manner.
+    public void print()
+    {
+        for (int i = 0; i < values.length; ++i)
+        {
+            for (int j = 0; j < values[0].length; ++j)
+                System.out.print(" " + String.format("%2f", values[i][j]));
+            System.out.println();
+        }
+    }
+    
+    // Static method that checks if the given array is a diagonal matrix (all off-diagonal
+    // elements are zero).
+    protected static boolean isDiagonal(double[][] matrix)
+    {
+        for (int i = 0; i < matrix.length; ++i)
+        {
+            for (int j = 0; j < matrix[0].length; ++j)
+                if (i != j && matrix[i][j] != 0)
+                    return false;
+        }
+        return true;
+    }
+    
+    // Static method that checks if the given array is an identity matrix (diagonal elements
+    // are all ones, and off-diagonal elements are zero).
+    protected static boolean isIdentity(double[][] matrix)
+    {
+        for (int i = 0; i < matrix.length; ++i)
+        {
+            for (int j = 0; j < matrix[0].length; ++j)
+                if ((i != j && matrix[i][j] != 0) || (i == j && matrix[i][j] != 1))
+                    return false;
+        }
+        return true;
+    }
+    
+    // Static method that checks if the given array is an upper triangle matrix (all elements
+    // below the main diagonal are zero).
+    protected static boolean isUpperTriangle(double[][] matrix)
+    {
+        for (int i = 1; i < matrix.length; i++)
+            for (int j = 0; j < i; j++)
+                if (matrix[i][j] != 0)
+                    return false;
+        return true;
+    }
+    
+    // Static method that checks if the given array is a lower triangle matrix (all elements
+    // above the main diagonal are zero).
+    protected static boolean isLowerTriangle(double[][] matrix)
+    {
+        for (int i = 0; i < matrix.length; i++)
+            for (int j = i + 1; j < matrix[i].length; j++)
+                if (matrix[i][j] != 0)
+                    return false;
+        return true;
+    }
+    
+    // Checks the properties of the given array and returns an object of the appropriate
+    // descendant of AbstractMatrix based on its properties (such as identity matrix,
+    // diagonal matrix, upper triangle matrix, etc.).
+    protected AbstractMatrix checkProperty(double[][] values)
+    {
+        if (isDiagonal(values)) {
+            return new DiagonalMatrix(values);
+        } else if (isIdentity(values)) {
+            return new IdentityMatrix(values);
+        } else if (isUpperTriangle(values)) {
+            return new UpperTriangleMatrix(values);
+        } else if (isLowerTriangle(values)) {
+            return new LowerTriangleMatrix(values);
+        } else {
+            return new ConcreteMatrix(values);
+        }
+    }
+    
+    // Abstract method for multiplying this matrix from the left by another matrix.
+    public AbstractMatrix multiplyFromLeft(AbstractMatrix other)
+    {
+        sameDimensionsForMultiplication(other);
+        double[][] result = new double[getRows()][other.getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < other.getColumns(); j++) {
+                double sum = 0;
+                for (int k = 0; k < getColumns(); k++) {
+                    sum += getValue(i, k) * other.getValue(k, j);
+                }
+                result[i][j] = sum;
+            }
+        }
+        return checkProperty(result);
+    }
+    
+    // Abstract method for multiplying this matrix from the right by another matrix.
+    public AbstractMatrix multiplyFromRight(AbstractMatrix other)
+    {
+        sameDimensionsForMultiplication(other);
+        return other.multiplyFromLeft(this);
+    }
+    
+    // Abstract method for multiplying this matrix by a natural scalar value.
+    public AbstractMatrix multiplyByScalar(double scalar)
+    {
+        double[][] result = new double[getRows()][getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[i][j] = scalar * getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+    
+    // Abstract method for adding another matrix to this matrix.
+    public AbstractMatrix add(AbstractMatrix other)
+    {
+        sameDimensions(other);
+        double[][] result = new double[getRows()][getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[i][j] = getValue(i, j) + other.getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+    
+    // Abstract method for subtracting another matrix from this matrix.
+    public AbstractMatrix subtract(AbstractMatrix other)
+    {
+        sameDimensions(other);
+        double[][] result = new double[getRows()][getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[i][j] = getValue(i, j) - other.getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+    
+    // Abstract method for computing the transpose of this matrix.
+    public AbstractMatrix transpose()
+    {
+        double[][] result = new double[getColumns()][getRows()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[j][i] = getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+    
+    protected double[][] values;
+}
+
+class ConcreteMatrix extends AbstractMatrix {
+
+    public ConcreteMatrix(double[][] matrix) {
+        super(matrix);
+    }
+
+    @Override
+    public AbstractMatrix multiplyFromLeft(AbstractMatrix other) {
+        sameDimensionsForMultiplication(other);
+        double[][] result = new double[getRows()][other.getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < other.getColumns(); j++) {
+                double sum = 0;
+                for (int k = 0; k < getColumns(); k++) {
+                    sum += getValue(i, k) * other.getValue(k, j);
+                }
+                result[i][j] = sum;
+            }
+        }
+        return checkProperty(result);
+    }
+
+    @Override
+    public AbstractMatrix multiplyFromRight(AbstractMatrix other) {
+        sameDimensionsForMultiplication(other);
+        double[][] result = new double[other.getRows()][getColumns()];
+        for (int i = 0; i < other.getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                double sum = 0;
+                for (int k = 0; k < other.getColumns(); k++) {
+                    sum += other.getValue(i, k) * getValue(k, j);
+                }
+                result[i][j] = sum;
+            }
+        }
+        return checkProperty(result);
+    }
+
+    @Override
+    public AbstractMatrix multiplyByScalar(double scalar) {
+        double[][] result = new double[getRows()][getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[i][j] = scalar * getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+
+    @Override
+    public AbstractMatrix add(AbstractMatrix other) {
+        sameDimensions(other);
+        double[][] result = new double[getRows()][getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[i][j] = getValue(i, j) + other.getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+
+    @Override
+    public AbstractMatrix subtract(AbstractMatrix other) {
+        sameDimensions(other);
+        double[][] result = new double[getRows()][getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[i][j] = getValue(i, j) - other.getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+
+    @Override
+    public AbstractMatrix transpose() {
+        double[][] result = new double[getColumns()][getRows()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[j][i] = getValue(i, j);
+            }
+        }
+        return checkProperty(result);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        ConcreteMatrix other = (ConcreteMatrix) obj;
+        return Arrays.deepEquals(getValues(), other.getValues());
+    }
+}
+
+class RowMatrix extends ConcreteMatrix {
+
+    public RowMatrix(double[][] matrix) {
+        super(matrix);
+        if (getRows() != 1) {
+            System.err.println("Error: Not a row-matrix.");
+            System.exit(1);
+        }
+    }
+
+    @Override
+    public AbstractMatrix transpose() {
+        return new ColumnMatrix(getValues());
+    }
+}
+
+class ColumnMatrix extends ConcreteMatrix {
+
+    public ColumnMatrix(double[][] matrix) {
+        super(matrix);
+        if (getColumns() != 1) {
+            System.err.println("Error: Not a column-matrix.");
+            System.exit(1);
+        }
+    }
+
+    @Override
+    public AbstractMatrix transpose() {
+        return new RowMatrix(getValues());
+    }
+}
+
+class SquareMatrix extends ConcreteMatrix {
+
+    public SquareMatrix(double[][] matrix) {
+        super(matrix);
+        if (getRows() != getColumns()) {
+            System.err.println("Error: Not a square-matrix.");
+            System.exit(1);
+        }
+    }
+
+    public double determinant() {
+        if (getRows() != getColumns()) {
+            System.err.println("Error: Not a square matrix.");
+            System.exit(1);
+        }
+        return determinant(getValues());
+    }
+
+    private double determinant(double[][] matrix) {
+        int size = matrix.length;
+
+        if (size == 1) {
+            return matrix[0][0];
+        }
+
+        if (size == 2) {
+            return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+        }
+
+        double det = 0;
+        for (int i = 0; i < size; i++) {
+            double[][] submatrix = new double[size - 1][size - 1];
+            for (int j = 1; j < size; j++) {
+                for (int k = 0, l = 0; k < size; k++) {
+                    if (k != i) {
+                        submatrix[j - 1][l++] = matrix[j][k];
+                    }
+                }
+            }
+            det += (i % 2 == 0 ? 1 : -1) * matrix[0][i] * determinant(submatrix);
+        }
+
+        return det;
+    }
+}
+
+class UpperTriangleMatrix extends SquareMatrix {
+
+    public UpperTriangleMatrix(double[][] matrix) {
+        super(matrix);
+        // Validate if it's an upper-triangle matrix
+        for (int i = 1; i < matrix.length; i++) {
+            for (int j = 0; j < i; j++) {
+                if (matrix[i][j] != 0) {
+                    System.err.println("Error: Not an upper-triangle matrix.");
+                    System.exit(1);
+                }
+            }
+        }
+    }
+
+    @Override
+    public AbstractMatrix transpose() {
+        return new LowerTriangleMatrix(super.transpose().getValues());
+    }
+}
+
+class LowerTriangleMatrix extends SquareMatrix {
+
+    public LowerTriangleMatrix(double[][] matrix) {
+        super(matrix);
+        // Validate if it's a lower-triangle matrix
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = i + 1; j < matrix[i].length; j++) {
+                if (matrix[i][j] != 0) {
+                    System.err.println("Error: Not a lower-triangle matrix.");
+                    System.exit(1);
+                }
+            }
+        }
+    }
+
+    @Override
+    public AbstractMatrix transpose() {
+        return new UpperTriangleMatrix(super.transpose().getValues());
+    }
+}
+
+class DiagonalMatrix extends SquareMatrix {
+
+    public DiagonalMatrix(double[][] matrix) {
+        super(matrix);
+        // Validate if it's a diagonal matrix
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < matrix[i].length; j++) {
+                if (i != j && matrix[i][j] != 0) {
+                    System.err.println("Error: Not a diagonal matrix.");
+                    System.exit(1);
+                }
+            }
+        }
+    }
+
+    @Override
+    public AbstractMatrix transpose() {
+        return new DiagonalMatrix(super.transpose().getValues());
+    }
+
+    @Override
+    public double determinant() {
+        double det = 1.0;
+        for (int i = 0; i < getRows(); i++) {
+            det *= getValue(i, i);
+        }
+        return det;
+    }
+}
+
+class IdentityMatrix extends DiagonalMatrix {
+
+    public IdentityMatrix(double[][] matrix) {
+        super(matrix);
+        // Validate if it's an identity matrix
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < matrix[i].length; j++) {
+                if ((i != j && matrix[i][j] != 0) || (i == j && matrix[i][j] != 1)) {
+                    System.err.println("Error: Not an identity matrix.");
+                    System.exit(1);
+                }
+            }
+        }
+    }
+
+    @Override
+    public AbstractMatrix transpose() {
+        return new IdentityMatrix(super.transpose().getValues());
+    }
+
+    @Override
+    public double determinant() {
+        return 1.0;
+    }
+
+    @Override
+    public AbstractMatrix multiplyByScalar(double scalar) {
+        double[][] result = new double[getRows()][getColumns()];
+        for (int i = 0; i < getRows(); i++) {
+            for (int j = 0; j < getColumns(); j++) {
+                result[i][j] = scalar * getValue(i, j);
+            }
+        }
+        if (scalar == 1) {
+            return new IdentityMatrix(result);
+        } else {
+            return new DiagonalMatrix(result);
+        }
+    }
+}
+
+public class Main {
+
+    public static void main(String[] args) {
+        testConcreteMatrix();
+        testDiagonalMatrix();
+        testIdentityMatrix();
+        // Add more tests as needed for other matrix classes
+    }
+
+    private static void testConcreteMatrix() {
+        double[][] matrixValues = {
+            {1, 2, 3},
+            {4, 5, 6},
+            {7, 8, 9}
+        };
+        
+        ConcreteMatrix concreteMatrix = new ConcreteMatrix(matrixValues);
+
+        System.out.println("Concrete Matrix:");
+        concreteMatrix.print();
+
+        ConcreteMatrix scalarMultiplied = (ConcreteMatrix) concreteMatrix.multiplyByScalar(2);
+        System.out.println("\nScalar Multiplication (ConcreteMatrix):");
+        scalarMultiplied.print();
+
+        ConcreteMatrix matrixSum = (ConcreteMatrix) concreteMatrix.add(scalarMultiplied);
+        System.out.println("\nMatrix Sum (ConcreteMatrix):");
+        matrixSum.print();
+    }
+
+    private static void testDiagonalMatrix() {
+        double[][] diagonalValues = {
+            {2, 0, 0},
+            {0, 5, 0},
+            {0, 0, 8}
+        };
+
+        DiagonalMatrix diagonalMatrix = new DiagonalMatrix(diagonalValues);
+
+        System.out.println("\nDiagonal Matrix:");
+        diagonalMatrix.print();
+
+        DiagonalMatrix transposedDiagonal = (DiagonalMatrix) diagonalMatrix.transpose();
+        System.out.println("\nTransposed Diagonal Matrix:");
+        transposedDiagonal.print();
+
+        System.out.println("\nDeterminant of Diagonal Matrix: " + diagonalMatrix.determinant());
+    }
+
+    private static void testIdentityMatrix() {
+        double[][] identityValues = {
+            {1, 0, 0},
+            {0, 1, 0},
+            {0, 0, 1}
+        };
+
+        IdentityMatrix identityMatrix = new IdentityMatrix(identityValues);
+
+        System.out.println("\nIdentity Matrix:");
+        identityMatrix.print();
+
+        IdentityMatrix transposedIdentity = (IdentityMatrix) identityMatrix.transpose();
+        System.out.println("\nTransposed Identity Matrix:");
+        transposedIdentity.print();
+
+        System.out.println("\nDeterminant of Identity Matrix: " + identityMatrix.determinant());
+
+        ConcreteMatrix scalarMultiplied = (ConcreteMatrix) identityMatrix.multiplyByScalar(2);
+        System.out.println("\nScalar Multiplication (IdentityMatrix):");
+        scalarMultiplied.print();
+    }
+}
+
